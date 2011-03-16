@@ -5,7 +5,6 @@ import flash.utils.describeType;
 import org.osflash.signals.ISignal;
 import org.robotlegs.core.IGuardedSignalCommandMap;
 import org.robotlegs.core.IInjector;
-import org.robotlegs.core.IReflector;
 
 public class GuardedSignalCommandMap extends SignalCommandMap implements IGuardedSignalCommandMap {
 
@@ -13,7 +12,7 @@ public class GuardedSignalCommandMap extends SignalCommandMap implements IGuarde
 
     public const E_GUARD_NOIMPL:String = 'Guard Class does not implement an approve() method';
 
-    public function GuardedSignalCommandMap(injector:IInjector, reflector:IReflector) {
+    public function GuardedSignalCommandMap(injector:IInjector) {
         super(injector);
         this.verifiedGuardClasses = new Dictionary(false);
     }
@@ -22,9 +21,7 @@ public class GuardedSignalCommandMap extends SignalCommandMap implements IGuarde
     // IGuardedCommandMap Implementation
     //---------------------------------------
 
-    /**
-     * @inheritDoc
-    */
+    //import org.robotlegs.core.IGuardedCommandMap;
     public function mapGuardedSignal(signal:ISignal, commandClass:Class, guards:*, oneShot:Boolean = false):void {
         verifyCommandClass(commandClass);
 
@@ -32,7 +29,7 @@ public class GuardedSignalCommandMap extends SignalCommandMap implements IGuarde
             guards = [guards];
         }
 
-        verifyCommandClass(commandClass);
+        verifyGuardClasses(guards);
 
         if (hasSignalCommand(signal, commandClass))
             return;
@@ -47,10 +44,7 @@ public class GuardedSignalCommandMap extends SignalCommandMap implements IGuarde
         signal.add(callback);
     }
 
-    /**
-     * @inheritDoc
-    */
-     public function mapGuardedSignalClass(signalClass:Class, commandClass:Class, guards:*, oneShot:Boolean = false):ISignal {
+    public function mapGuardedSignalClass(signalClass:Class, commandClass:Class, guards:*, oneShot:Boolean = false):ISignal {
         var signal:ISignal = getSignalClassInstance(signalClass);
         mapGuardedSignal(signal, commandClass, guards, oneShot);
         return signal;
@@ -59,7 +53,7 @@ public class GuardedSignalCommandMap extends SignalCommandMap implements IGuarde
     protected function routeSignalToGuardedCommand(signal:ISignal, valueObjects:Array, commandClass:Class, oneshot:Boolean, guardClasses:Array):void
     {
 
-        mapSignalValues(signal.valueClasses, valueObjects);
+		mapSignalValues(signal.valueClasses, valueObjects);
 
         var guardClass:Class;
         var iLength:uint = guardClasses.length;
@@ -67,7 +61,7 @@ public class GuardedSignalCommandMap extends SignalCommandMap implements IGuarde
             guardClass = guardClasses[i];
             var nextGuard:Object = injector.instantiate(guardClass);
             if (! nextGuard.approve()) {
-                unmapSignalValues(signal.valueClasses, valueObjects);
+		        unmapSignalValues(signal.valueClasses, valueObjects);
                 return;
             }
         }
@@ -88,6 +82,7 @@ public class GuardedSignalCommandMap extends SignalCommandMap implements IGuarde
             guardClass = guardClasses[i];
             if (!verifiedGuardClasses[guardClass]) {
                 verifiedGuardClasses[guardClass] = describeType(guardClass).factory.method.(@name == "approve").length();
+
                 if (!verifiedGuardClasses[guardClass])
                     throw new ContextError(E_GUARD_NOIMPL + ' - ' + guardClass);
             }
